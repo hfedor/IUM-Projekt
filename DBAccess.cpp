@@ -171,6 +171,140 @@ bool DBAccess::ClearSessionsTable()
 	return true;
 }
 
+int DBAccess::CountProductVisitByUser(int product_id, int user_id)
+{
+	char* zErrMsg = 0;
+	int rc;
+	string sql;
+	string result;
+	sqlite3_stmt* stmt = 0;
+
+	sql = "SELECT COUNT(*) FROM sessions WHERE product_id = ? AND user_id = ?";
+
+	sqlite3_prepare_v2(db, sql.c_str(), sql.length(), &stmt, 0);
+
+	sqlite3_exec(db, "BEGIN TRANSACTION", 0, 0, 0);
+
+	sqlite3_bind_int(stmt, 1, product_id);
+	sqlite3_bind_int(stmt, 2, user_id);
+
+	while (sqlite3_step(stmt) == SQLITE_ROW)
+	{
+		const unsigned char* tmp = sqlite3_column_text(stmt, 0);
+		if (tmp == NULL)
+			result = "0";
+		else
+			result = std::string(reinterpret_cast<const char*>(tmp));
+	}
+
+	sqlite3_step(stmt);
+	sqlite3_clear_bindings(stmt);
+	sqlite3_reset(stmt);
+
+	rc = sqlite3_exec(db, "END TRANSACTION", 0, 0, &zErrMsg);   //  End the transaction.
+
+	if (rc != SQLITE_OK)
+	{
+		sqlite3_free(zErrMsg);
+		cout << "CountProductVisitByUser error:" << endl;
+		return 0;
+	}
+
+	rc = sqlite3_finalize(stmt);
+
+	if (rc != SQLITE_OK) {
+		cout << "CountProductVisitByUser:" << endl;
+		return 0;
+	}
+	else
+		return atoi(result.c_str());
+}
+
+int DBAccess::CountProductsCategoryVisitByUser(int product_id, int user_id)
+{
+	char* zErrMsg = 0;
+	int rc;
+	string sql;
+	string category;
+	int result = 0;
+	sqlite3_stmt* stmt = 0;
+
+	// find category of given product
+	sql = "SELECT DISTINCT category_path FROM sessions WHERE product_id = ? AND user_id = ?";
+
+	sqlite3_prepare_v2(db, sql.c_str(), sql.length(), &stmt, 0);
+
+	sqlite3_exec(db, "BEGIN TRANSACTION", 0, 0, 0);
+
+	sqlite3_bind_int(stmt, 1, product_id);
+	sqlite3_bind_int(stmt, 2, user_id);
+
+	while (sqlite3_step(stmt) == SQLITE_ROW)
+	{
+		const unsigned char* tmp = sqlite3_column_text(stmt, 0);
+		if (tmp == NULL)
+			result = 0;
+		else
+			category = std::string(reinterpret_cast<const char*>(tmp));
+	}
+
+	sqlite3_step(stmt);
+	sqlite3_clear_bindings(stmt);
+	sqlite3_reset(stmt);
+
+	rc = sqlite3_exec(db, "END TRANSACTION", 0, 0, &zErrMsg);   //  End the transaction.
+
+	if (rc != SQLITE_OK)
+	{
+		sqlite3_free(zErrMsg);
+		cout << "CountProductsCategoryVisitByUser error:" << endl;
+		return 0;
+	}
+
+	rc = sqlite3_finalize(stmt);
+
+	if (rc != SQLITE_OK) {
+		cout << "CountProductsCategoryVisitByUser:" << endl;
+		return 0;
+	}
+
+	// count product from the same category as given product, visited by given suer
+	sql = "SELECT product_id FROM sessions WHERE product_id IS NOT ? AND user_id = ? AND category_path = ? GROUP BY product_id";
+
+	sqlite3_prepare_v2(db, sql.c_str(), sql.length(), &stmt, 0);
+
+	sqlite3_exec(db, "BEGIN TRANSACTION", 0, 0, 0);
+
+	sqlite3_bind_int(stmt, 1, product_id);
+	sqlite3_bind_int(stmt, 2, user_id);
+	sqlite3_bind_text(stmt, 3, category.c_str(), -1, 0);
+
+	while (sqlite3_step(stmt) == SQLITE_ROW)
+		result++;
+
+	sqlite3_step(stmt);
+	sqlite3_clear_bindings(stmt);
+	sqlite3_reset(stmt);
+
+	rc = sqlite3_exec(db, "END TRANSACTION", 0, 0, &zErrMsg);   //  End the transaction.
+
+	if (rc != SQLITE_OK)
+	{
+		sqlite3_free(zErrMsg);
+		cout << "CountProductsCategoryVisitByUser error:" << endl;
+		return 0;
+	}
+
+	rc = sqlite3_finalize(stmt);
+
+	if (rc != SQLITE_OK) {
+		cout << "CountProductsCategoryVisitByUser:" << endl;
+		return 0;
+	}
+
+	return result;
+}
+
 std::string DBAccess::GetTimestamp(int id)
 {
 	return GetSessionsRecord(id,1);
@@ -278,6 +412,44 @@ std::vector<int> DBAccess::GetSessionsIndexes()
 
 	if (rc != SQLITE_OK)
 		cout << "GetSessionsIndexes error:" << endl;
+	else
+		return ids;
+}
+
+std::vector<int> DBAccess::GetUserIDs()
+{
+	char* zErrMsg = 0;
+	int rc;
+	string sql;
+	sqlite3_stmt* stmt = 0;
+	vector<int> ids;
+
+	sql = "SELECT DISTINCT user_id FROM sessions";
+
+	sqlite3_prepare_v2(db, sql.c_str(), -1, &stmt, 0);
+
+	sqlite3_exec(db, "BEGIN TRANSACTION", 0, 0, 0);
+
+	while (sqlite3_step(stmt) == SQLITE_ROW)
+		ids.push_back(sqlite3_column_int(stmt, 0));
+
+	sqlite3_step(stmt);
+	sqlite3_clear_bindings(stmt);
+	sqlite3_reset(stmt);
+
+	rc = sqlite3_exec(db, "END TRANSACTION", 0, 0, &zErrMsg);   //  End the transaction.
+
+	if (rc != SQLITE_OK)
+	{
+		sqlite3_free(zErrMsg);
+		cout << "GetUserIDs error:" << endl;
+		return ids;
+	}
+
+	rc = sqlite3_finalize(stmt);
+
+	if (rc != SQLITE_OK)
+		cout << "GetUserIDs error:" << endl;
 	else
 		return ids;
 }
@@ -403,7 +575,7 @@ string DBAccess::RandomNounFromDB()
 	return result;
 }
 
-	// REMOVE TASKS:
+	// REMOVE SESSIONS:
 bool DBAccess::RemoveSessionFromDB(int id)
 {
 	char *zErrMsg = 0;
@@ -554,6 +726,58 @@ void DBAccess::SetSessionRecord(int id, int columnx, std::string column, std::st
 	
 	if( rc != SQLITE_OK )
 		cout << "SetNounRecord error:" << endl;
+}
+
+bool DBAccess::WasProductBoughtByUser(int product_id, int user_id)
+{
+	char* zErrMsg = 0;
+	int rc;
+	string sql;
+	sqlite3_stmt* stmt = 0;
+	string result;
+
+	sql = "SELECT COUNT(*) FROM sessions WHERE product_id = ? AND user_id = ? AND event_type = \'BUY_PRODUCT\' ";
+
+	sqlite3_prepare_v2(db, sql.c_str(), sql.length(), &stmt, 0);
+
+	sqlite3_exec(db, "BEGIN TRANSACTION", 0, 0, 0);
+
+	sqlite3_bind_int(stmt, 1, product_id);
+	sqlite3_bind_int(stmt, 2, user_id);
+
+	while (sqlite3_step(stmt) == SQLITE_ROW)
+	{
+		const unsigned char* tmp = sqlite3_column_text(stmt, 0);
+		if (tmp == NULL)
+			return false;
+		else
+			result = std::string(reinterpret_cast<const char*>(tmp));
+	}
+
+	sqlite3_step(stmt);
+	sqlite3_clear_bindings(stmt);
+	sqlite3_reset(stmt);
+
+	rc = sqlite3_exec(db, "END TRANSACTION", 0, 0, &zErrMsg);   //  End the transaction.
+
+	if (rc != SQLITE_OK)
+	{
+		sqlite3_free(zErrMsg);
+		cout << "GetSessionsRecord (IsAlreadyInTable) error:" << endl;
+		return "0";
+	}
+
+	rc = sqlite3_finalize(stmt);
+
+	if (rc != SQLITE_OK) {
+		cout << "GetSessionsRecord error:" << endl;
+		return "0";
+	}
+	else if (result != "0")
+		return true;
+	else
+		return false;
+		
 }
 
 // USED IN OTHER FUNCTION:
