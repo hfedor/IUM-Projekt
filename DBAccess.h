@@ -37,7 +37,10 @@ class DBAccess
 		int AddSessionToDB(int session_id, std::string timestamp, int user_id, int product_id, std::string event_type, std::string category_path); // add session with given datas to database
 		bool BuildSessionsTable(); // build  sessions table
 		bool ClearSessionsTable(); // remove all records from sessions table
+		int CountAllProductsBoughtedByUser(int product_id, int user_id);
+		int CountAllProductsVisitByUser(int user_id);
 		int CountProductVisitByUser(int product_id, int user_id);
+		int CountProductsCategoryBoughtedByUser(int product_id, int user_id);
 		int CountProductsCategoryVisitByUser(int product_id, int user_id);
 		std::string GetTimestamp(int session_id); // get timestamp of session with given ID
 		int GetUserID(int session_id); // get user_id of session with given ID
@@ -45,6 +48,7 @@ class DBAccess
 		std::string GetEventType(int session_id); // get event type of session with given ID
 		std::string GetCategoryPath(int session_id); // get category path of session with given ID
 		std::string GetSessionsRecord(int session_id, int column);  // get record from given column from node with given ID
+		std::vector<int> GetProductsVisitedByUser(int user_id);
 		std::vector<int> GetSessionsIndexes(); // get vector of sessions indexes
 		std::vector<int> GetUserIDs(); // get vector of users indexes
 		std::ostream & GetSessionsInfoFromDB(std::ostream &out); // get Inforamtions about all tasks and put it to given stream

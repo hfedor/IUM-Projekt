@@ -10,6 +10,7 @@ private:
 	std::list<int> intrested;
 public:
 	User(int id);
+	int GetID() { return id; }
 	friend std::ostream& operator<< (std::ostream& out, const User& user);
 };
 
