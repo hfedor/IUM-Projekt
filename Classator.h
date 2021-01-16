@@ -17,6 +17,10 @@ private:
 	std::list<User> learningB;
 	std::list<User> testA;
 	std::list<User> testB;
+	int good_possitive = 0;
+	int bad_possitive = 0;
+	int good_negative = 0;
+	int bad_negative = 0;
 	double a, b, c; // parameters
 	int max_product_visit = 16;
 	int max_category_visit = 9;
@@ -25,9 +29,11 @@ private:
 	int max_category_boughts = 10;
 public:
 	Classator(double a = 1.0, double b = 1.0, double c = 1.0);
+	void CheckModel(std::string test_file, std::string output_file);
 	void FindMaxs();
 	void GroupUsers(std::vector<int> users, double n);
 	bool IsUserInterestedInProduct(int product_id, User user);
+	void PreperUserProductTestFile(int product_id, int user_id);
 	void PreperLearingAFile(std::string file_name);
 	void PreperLearingBFile(std::string file_name);
 	void PreperTestAFile(std::string file_name);

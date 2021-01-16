@@ -7,6 +7,94 @@ Classator::Classator(double a, double b, double c)
 	dba = new DBAccess("IUM_Projekt.db");
 }
 
+void Classator::CheckModel(std::string test_file_name, std::string output_file_name)
+{
+	std::fstream test_file, output_file;
+	test_file.open(test_file_name, std::ios::in);
+	output_file.open(output_file_name, std::ios::in);
+	if (test_file.good() == true && output_file.good() == true)
+	{
+		//std::cout << "Uzyskano dostep do pliku!" << std::endl;
+
+		good_possitive = 0;
+		bad_possitive = 0;
+		good_negative = 0;
+		bad_negative = 0;
+		
+		string line;
+		string tmp = "";
+		int user_id, product_id;
+		bool is_possitive;
+		float tmp_float;
+		
+		while (getline(test_file, line))
+		{
+			for (int i = 0; i < line.length(); i++)
+			{
+				if (line[i] == '#')
+				{
+					i += 2;
+					for (int j = i; j < line.length(); j++)
+					{
+						if (line[j] == ';')
+							break;
+						tmp += line[j];
+						i++;
+					}
+					user_id = atoi(tmp.c_str());
+					//cout << "user: " << user_id;
+					tmp = "";
+					i++;
+					for (int j = i; j < line.length(); j++)
+					{
+						tmp += line[j];
+						i++;
+					}
+					product_id = atoi(tmp.c_str());
+					//cout << "product: " << product_id << endl;
+					tmp = "";
+
+					output_file >> tmp_float;
+					is_possitive = tmp_float > 0;
+
+					if (is_possitive)
+					{
+						if (dba->WasProductBoughtByUser(product_id, user_id))
+							good_possitive++;
+						else
+							bad_possitive++;
+					}
+					else
+					{
+						if (dba->WasProductBoughtByUser(product_id, user_id))
+							bad_negative++;
+						else
+							good_negative++;
+					}
+				}
+			}
+		}
+
+		cout << "good possitives: " << good_possitive << endl;
+		cout << "bad possitives: " << bad_possitive << endl;
+		cout << "good neativess: " << good_negative << endl;
+		cout << "bad negatives: " << bad_negative << endl;
+
+		int all_possitive = good_possitive + bad_possitive;
+		int all_negative = good_negative + bad_negative;
+		int all_general = all_possitive + all_negative;
+		int all_good = good_possitive + good_negative;
+
+		cout << "good possitives percentage: " << (float)((float)good_possitive / (float)all_possitive) << endl;
+		cout << "bad possitives percentage: " << (float)((float)bad_possitive / (float)all_possitive) << endl;
+		cout << "good neativess percentage: " << (float)((float)good_negative / (float)all_negative) << endl;
+		cout << "bad negatives percentage: " << (float)((float)bad_negative / (float)all_negative) << endl;
+		cout << "good general percentage: " << (float)all_good / (float)all_general << endl;
+	}
+	else std::cout << "Dostep do pliku zostal zabroniony!" << std::endl;
+
+}
+
 void Classator::FindMaxs()
 {
 	vector<int> users = dba->GetUserIDs();
@@ -123,6 +211,45 @@ bool Classator::IsUserInterestedInProduct(int product_id, User user)
 		return true;
 	else
 		return false;
+}
+
+void Classator::PreperUserProductTestFile(int product_id, int user_id)
+{
+	std::fstream file;
+	file.open("user_test_file.dab", std::ios::out);
+	if (file.good() == true)
+	{
+		std::cout << "File is good!!" << std::endl;
+
+		bool was_bought = dba->WasProductBoughtByUser(product_id, user_id);
+
+		int product_visit = dba->CountProductVisitByUser(product_id, user_id);
+		int category_visit = dba->CountProductsCategoryVisitByUser(product_id, user_id);
+		int all_visit = dba->CountAllProductsVisitByUser(user_id);
+		int all_boughts = dba->CountAllProductsBoughtedByUser(product_id, user_id);
+		int category_boughts = dba->CountProductsCategoryBoughtedByUser(product_id, user_id);
+
+		if (was_bought)
+			file << "+1 ";
+		else
+			file << "-1 ";
+
+		float normalize_product_visit = (float)product_visit / (float)max_product_visit;
+		float normalize_category_visit = (float)category_visit / (float)max_category_visit;
+		float normalize_all_visit = (float)all_visit / (float)max_all_visit;
+		float normalize_all_boughts = (float)all_boughts / (float)max_all_boughts;
+		float normalize_category_boughts = (float)category_boughts / (float)max_category_boughts;
+
+		file << "1:" << normalize_product_visit << " "
+			<< "2:" << normalize_category_visit << " "
+			<< "3:" << normalize_all_visit << " "
+			<< "4:" << normalize_all_boughts << " "
+			<< "5:" << normalize_category_boughts << " "
+			<< "# " << user_id << ";" << product_id << endl;
+
+		file.close();
+	}
+	else std::cout << "Can't open the file!" << std::endl;
 }
 
 void Classator::PreperLearingAFile(std::string file_name)
